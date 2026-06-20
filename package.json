@@ -1,0 +1,72 @@
+{
+	"author": "onjmin",
+	"license": "MIT",
+	"name": "@onjmin/chord-parser",
+	"version": "1.0.0",
+	"description": "コードネーム（chord symbol）⇄ 構成音（chord tones）を相互変換する、依存ゼロの軽量パーサ",
+	"homepage": "https://onjmin.github.io/chord-parser",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/onjmin/chord-parser.git"
+	},
+	"bugs": {
+		"url": "https://github.com/onjmin/chord-parser/issues"
+	},
+	"main": "dist/index.js",
+	"module": "dist/index.mjs",
+	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.mjs",
+			"require": "./dist/index.js"
+		}
+	},
+	"sideEffects": false,
+	"scripts": {
+		"dev": "rimraf dist && tsup && biome format src --write && tsx demo/server.ts",
+		"build": "rimraf dist && tsup && biome format src --write",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check src",
+		"format": "biome format src --write",
+		"test": "tsx --test src/*.test.ts",
+		"prepublishOnly": "pnpm run build",
+		"patch": "pnpm version patch",
+		"publish-dangerous-dont-use-this-command": "pnpm publish --access public"
+	},
+	"files": [
+		"dist"
+	],
+	"keywords": [
+		"chord",
+		"chord-symbol",
+		"chord-name",
+		"chord-tones",
+		"music",
+		"music-theory",
+		"parser",
+		"harmony",
+		"chord-detection"
+	],
+	"packageManager": "pnpm@10.17.1",
+	"volta": {
+		"node": "22.15.1",
+		"pnpm": "10.17.1"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild"
+		]
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.2.3",
+		"@hono/node-server": "1.19.5",
+		"@types/node": "^22.0.0",
+		"hono": "4.10.1",
+		"rimraf": "6.0.1",
+		"tsup": "8.5.0",
+		"tsx": "4.20.6",
+		"typedoc": "0.28.19",
+		"typescript": "5.8.3"
+	}
+}

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>@onjmin/chord-parser demo</title>
+<style>
+	:root {
+		--bg: #0f1115;
+		--panel: #1a1d24;
+		--border: #2c313c;
+		--fg: #e6e8ec;
+		--muted: #8b93a1;
+		--accent: #6ea8fe;
+		--accent2: #6effc1;
+		--key-w: #f4f5f7;
+		--key-b: #20242c;
+		--lit: #6ea8fe;
+	}
+	* { box-sizing: border-box; }
+	body {
+		margin: 0;
+		background: var(--bg);
+		color: var(--fg);
+		font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+		line-height: 1.6;
+		padding: 24px 16px 64px;
+	}
+	.wrap { max-width: 760px; margin: 0 auto; }
+	h1 { font-size: 22px; margin: 0 0 4px; }
+	.sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+	.panel {
+		background: var(--panel);
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		padding: 18px;
+		margin-bottom: 20px;
+	}
+	.panel h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent); }
+	.panel.b h2 { color: var(--accent2); }
+	label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+	input[type="text"] {
+		width: 100%;
+		background: #0f1115;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		color: var(--fg);
+		font-size: 16px;
+		padding: 10px 12px;
+		font-family: ui-monospace, monospace;
+	}
+	input:focus { outline: none; border-color: var(--accent); }
+	.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+	.chip {
+		font: 12px ui-monospace, monospace;
+		background: #232833;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		padding: 3px 10px;
+		cursor: pointer;
+		color: var(--muted);
+	}
+	.chip:hover { color: var(--fg); border-color: var(--accent); }
+	.out { margin-top: 14px; font-size: 14px; }
+	.out code { font-family: ui-monospace, monospace; color: var(--accent2); }
+	.cands { list-style: none; padding: 0; margin: 8px 0 0; }
+	.cands li {
+		padding: 6px 10px;
+		border-radius: 8px;
+		display: flex;
+		gap: 10px;
+		align-items: baseline;
+	}
+	.cands li:first-child { background: #232833; }
+	.cands .sym { font: 16px ui-monospace, monospace; color: var(--accent2); min-width: 90px; }
+	.cands .meta { color: var(--muted); font-size: 12px; }
+	.err { color: #ff8a8a; font-size: 13px; }
+	/* keyboard */
+	.piano { position: relative; height: 90px; margin-top: 14px; user-select: none; }
+	.wkey, .bkey {
+		position: absolute; top: 0; cursor: pointer; border: 1px solid #000;
+		border-radius: 0 0 4px 4px;
+	}
+	.wkey { background: var(--key-w); height: 90px; }
+	.bkey { background: var(--key-b); height: 56px; z-index: 2; }
+	.wkey.lit { background: var(--lit); }
+	.bkey.lit { background: var(--accent); }
+	.foot { color: var(--muted); font-size: 12px; text-align: center; margin-top: 30px; }
+	a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+	<h1>@onjmin/chord-parser</h1>
+	<p class="sub">コードネーム（chord symbol）⇄ 構成音（chord tones）を相互変換するデモ</p>
+
+	<!-- (A) -->
+	<div class="panel a">
+		<h2>(A) コードネーム → 構成音 &nbsp;<code style="color:var(--muted)">parseChord</code></h2>
+		<label for="symIn">コードネームを入力</label>
+		<input id="symIn" type="text" value="Cmaj7" autocomplete="off" spellcheck="false" />
+		<div class="chips" id="symChips"></div>
+		<div class="piano" id="pianoA"></div>
+		<div class="out" id="symOut"></div>
+	</div>
+
+	<!-- (B) -->
+	<div class="panel b">
+		<h2>(B) 構成音 → コードネーム &nbsp;<code style="color:var(--muted)">detectChord</code></h2>
+		<label for="noteIn">構成音を入力（カンマ区切り。pitch class 0〜11 / MIDI どちらでも可）</label>
+		<input id="noteIn" type="text" value="0, 4, 7, 11" autocomplete="off" spellcheck="false" />
+		<div class="chips" id="noteChips"></div>
+		<div class="piano" id="pianoB"></div>
+		<div class="out" id="noteOut"></div>
+	</div>
+
+	<p class="foot">
+		MIT License ·
+		<a href="https://github.com/onjmin/chord-parser">GitHub</a> ·
+		<a href="../">API docs</a>
+	</p>
+</div>
+
+<script type="module">
+	const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
+	const { parseChord, detectChord, noteName } = await import(
+		isLocal ? "http://localhost:40299/dist/index.mjs" : "./index.mjs"
+	);
+
+	// ----- piano keyboard renderer (2 octaves) -----
+	const WHITE = [0, 2, 4, 5, 7, 9, 11];
+	const BLACK = [1, 3, 6, 8, 10];
+	const OCTAVES = 2;
+	function buildPiano(el) {
+		el.innerHTML = "";
+		const whiteCount = 7 * OCTAVES;
+		const ww = 100 / whiteCount;
+		const keys = new Map(); // pc(0..) -> [elements]
+		const add = (pc, node) => {
+			const k = ((pc % 12) + 12) % 12;
+			if (!keys.has(k)) keys.set(k, []);
+			keys.get(k).push(node);
+		};
+		let wi = 0;
+		for (let o = 0; o < OCTAVES; o++) {
+			for (const pc of WHITE) {
+				const k = document.createElement("div");
+				k.className = "wkey";
+				k.style.left = `${wi * ww}%`;
+				k.style.width = `${ww}%`;
+				el.appendChild(k);
+				add(o * 12 + pc, k);
+				wi++;
+			}
+		}
+		// black keys positioned relative to white index
+		const blackAfterWhite = { 1: 0, 3: 1, 6: 3, 8: 4, 10: 5 };
+		for (let o = 0; o < OCTAVES; o++) {
+			for (const pc of BLACK) {
+				const baseWhite = o * 7 + blackAfterWhite[pc];
+				const k = document.createElement("div");
+				k.className = "bkey";
+				k.style.left = `${(baseWhite + 1) * ww - ww * 0.3}%`;
+				k.style.width = `${ww * 0.6}%`;
+				el.appendChild(k);
+				add(o * 12 + pc, k);
+			}
+		}
+		return keys;
+	}
+	function light(keys, pcs) {
+		for (const arr of keys.values())
+			for (const n of arr) n.classList.remove("lit");
+		for (const pc of pcs) {
+			const arr = keys.get(((pc % 12) + 12) % 12);
+			if (arr) for (const n of arr) n.classList.add("lit");
+		}
+	}
+
+	const keysA = buildPiano(document.getElementById("pianoA"));
+	const keysB = buildPiano(document.getElementById("pianoB"));
+
+	// ----- (A) parseChord -----
+	const symIn = document.getElementById("symIn");
+	const symOut = document.getElementById("symOut");
+	function runA() {
+		try {
+			const r = parseChord(symIn.value.trim());
+			const names = r.pitchClasses.map((p) => noteName(p)).join(", ");
+			symOut.innerHTML =
+				`root: <code>${noteName(r.root)}</code> &nbsp; ` +
+				`notes: <code>[${r.notes.join(", ")}]</code><br>` +
+				`構成音: <code>${names}</code>`;
+			light(keysA, r.pitchClasses);
+		} catch (e) {
+			symOut.innerHTML = `<span class="err">${e.message.split("\n")[0]}</span>`;
+			light(keysA, []);
+		}
+	}
+	symIn.addEventListener("input", runA);
+	for (const s of ["C", "Am7", "G7", "FM7", "Dm7b5", "Csus4", "C/E", "G7sus4", "Cadd9"]) {
+		const c = document.createElement("span");
+		c.className = "chip";
+		c.textContent = s;
+		c.onclick = () => { symIn.value = s; runA(); };
+		document.getElementById("symChips").appendChild(c);
+	}
+
+	// ----- (B) detectChord -----
+	const noteIn = document.getElementById("noteIn");
+	const noteOut = document.getElementById("noteOut");
+	function runB() {
+		const notes = noteIn.value
+			.split(/[\s,]+/)
+			.filter((v) => v !== "")
+			.map(Number)
+			.filter((n) => Number.isFinite(n));
+		light(keysB, notes);
+		const cands = detectChord(notes);
+		if (!cands.length) {
+			noteOut.innerHTML = `<span class="err">一致するコードが見つかりません</span>`;
+			return;
+		}
+		const items = cands
+			.slice(0, 6)
+			.map(
+				(c) =>
+					`<li><span class="sym">${c.symbol}</span>` +
+					`<span class="meta">root ${noteName(c.root)} / ${c.inversion ? "転回形" : "基本形"}</span></li>`,
+			)
+			.join("");
+		noteOut.innerHTML = `<ul class="cands">${items}</ul>`;
+	}
+	noteIn.addEventListener("input", runB);
+	for (const s of ["0,4,7", "0,4,7,11", "2,5,9,0", "60,64,67,71", "4,7,12", "0,3,6,9"]) {
+		const c = document.createElement("span");
+		c.className = "chip";
+		c.textContent = s;
+		c.onclick = () => { noteIn.value = s; runB(); };
+		document.getElementById("noteChips").appendChild(c);
+	}
+
+	runA();
+	runB();
+</script>
+</body>
+</html>
