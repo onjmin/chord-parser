@@ -131,10 +131,6 @@ interface ChordCandidate {
 - `toPitchClass(n)` … 任意の整数を 0〜11 に正規化
 - `QUALITIES` … 検出対象コードクオリティの定義一覧（優先度順）
 
-## 由来
-
-(A) のパーサは [onjmin/piano](https://github.com/onjmin) の `parseChord.mjs` / `parseChords.mjs` を TypeScript へ移植し、外部依存（`SortedSet` / `toHan`）を内製の軽量実装へ置き換えたものです。`maj7` がメジャー7thとして解釈されるよう、元実装の取りこぼしを修正しています。(B) は本ライブラリ独自の逆引き方式です。
-
 ## 開発
 
 ```sh
