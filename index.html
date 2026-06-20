@@ -1,0 +1,140 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>@onjmin/chord-parser</title><meta name="description" content="Documentation for @onjmin/chord-parser"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">@onjmin/chord-parser</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>@onjmin/chord-parser</h1></div><div class="tsd-panel tsd-typography"><h1 id="onjminchord-parser" class="tsd-anchor-link">@onjmin/chord-parser<a href="#onjminchord-parser" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<p>コードネーム（<strong>chord symbol</strong> / 例: <code>Cmaj7</code>）⇄ 構成音（<strong>chord tones</strong> / 例: <code>[0, 4, 7, 11]</code>）を相互変換する、依存ゼロ・軽量の TypeScript パーサです。</p>
+<ul>
+<li><strong>(A) コードネーム → 構成音</strong> … <code>parseChord</code> / <code>parseChords</code></li>
+<li><strong>(B) 構成音 → コードネーム</strong> … <code>detectChord</code></li>
+</ul>
+<blockquote>
+<p><strong>用語について</strong>
+<code>Cmaj7</code> <code>Dm7</code> のような表記は、一般に <strong>コードネーム</strong>（英: <strong>chord symbol</strong> / lead-sheet symbol）と呼びます。日本語の「コード記法」は通称で、音楽理論上の標準語ではありません。本ライブラリでは標準語に合わせて <strong>chord symbol（コードネーム）</strong> と <strong>chord tones / 構成音</strong> という名前を採用しています。</p>
+</blockquote>
+<p>デモ: <a href="https://onjmin.github.io/chord-parser/demo/">https://onjmin.github.io/chord-parser/demo/</a> ・ API ドキュメント: <a href="https://onjmin.github.io/chord-parser/">https://onjmin.github.io/chord-parser/</a></p>
+<h2 id="インストール" class="tsd-anchor-link">インストール<a href="#インストール" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="sh"><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">add</span><span class="hl-1"> </span><span class="hl-2">@onjmin/chord-parser</span><br/><span class="hl-3"># npm i @onjmin/chord-parser / yarn add @onjmin/chord-parser</span>
+</code><button type="button">Copy</button></pre>
+
+<p>ESM / CJS / 型定義 すべて同梱。ブラウザからは CDN 直読みも可能です。</p>
+<pre><code class="js"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">parseChord</span><span class="hl-1">, </span><span class="hl-5">detectChord</span><span class="hl-1">, </span><span class="hl-5">parseChords</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;@onjmin/chord-parser&quot;</span><span class="hl-1">;</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="a-コードネーム-→-構成音" class="tsd-anchor-link">(A) コードネーム → 構成音<a href="#a-コードネーム-→-構成音" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<h3 id="_" class="tsd-anchor-link"><code>parseChord(symbol)</code><a href="#_" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>単一のコードネームを解析して構成音を返します。</p>
+<pre><code class="js"><span class="hl-0">parseChord</span><span class="hl-1">(</span><span class="hl-2">&quot;Cmaj7&quot;</span><span class="hl-1">);</span><br/><span class="hl-3">// {</span><br/><span class="hl-3">//   symbol: &quot;Cmaj7&quot;,</span><br/><span class="hl-3">//   root: 0,                  // ルートの pitch class（0=C, 1=C#, ... 11=B）</span><br/><span class="hl-3">//   notes: [0, 4, 7, 11],     // ルートを 0 とした絶対半音オフセット（昇順）</span><br/><span class="hl-3">//   pitchClasses: [0, 4, 7, 11], // オクターブを無視した pitch class 集合</span><br/><span class="hl-3">//   intervals: [0, 4, 7, 11], // ルートからの相対音程</span><br/><span class="hl-3">// }</span><br/><br/><span class="hl-0">parseChord</span><span class="hl-1">(</span><span class="hl-2">&quot;Dm7&quot;</span><span class="hl-1">).</span><span class="hl-5">pitchClasses</span><span class="hl-1">;  </span><span class="hl-3">// [0, 2, 5, 9]</span><br/><span class="hl-0">parseChord</span><span class="hl-1">(</span><span class="hl-2">&quot;C/E&quot;</span><span class="hl-1">).</span><span class="hl-5">notes</span><span class="hl-1">;         </span><span class="hl-3">// [4, 7, 12]  ベース音 E を最低音に置いた転回形</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>例</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>C</code> <code>Cm</code> <code>Cdim</code> <code>Caug</code> / <code>C+</code></td>
+<td>三和音（メジャー/マイナー/ディミニッシュ/オーグメント）</td>
+</tr>
+<tr>
+<td><code>Cmaj7</code> <code>CM7</code> <code>C7</code> <code>Cm7</code> <code>CmM7</code></td>
+<td>各種7th</td>
+</tr>
+<tr>
+<td><code>Cdim7</code> <code>Cm7b5</code> / <code>Cø</code></td>
+<td>減七 / 半減七</td>
+</tr>
+<tr>
+<td><code>C6</code> <code>Cm6</code> <code>C69</code></td>
+<td>6th 系</td>
+</tr>
+<tr>
+<td><code>Csus4</code> <code>Csus2</code> <code>C7sus4</code></td>
+<td>サスペンド</td>
+</tr>
+<tr>
+<td><code>Cadd9</code> <code>C9</code> <code>CM9</code> <code>Cm9</code></td>
+<td>テンション/拡張</td>
+</tr>
+<tr>
+<td><code>C(#5)</code> <code>C(9,11)</code> <code>C7b9</code> <code>C7#11</code></td>
+<td>括弧つき構成音指定</td>
+</tr>
+<tr>
+<td><code>Comit3</code> <code>Cno5</code></td>
+<td>構成音の省略</td>
+</tr>
+<tr>
+<td><code>C/E</code> <code>ConE</code> <code>Dm7/G</code></td>
+<td>分数コード / オンコード（転回形・ハイブリッド）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>ルート音は <code>C D E F G A B</code>、変化記号は <code># ♯ b ♭</code>。<code>m</code>/<code>min</code>/<code>minor</code>、<code>maj</code>/<code>major</code>/<code>M</code>、<code>dim</code>/<code>aug</code> など別綴りや全角記号（<code>△</code> <code>Δ</code> <code>ø</code>）にも対応します。解析できない文字列では <code>ChordSyntaxError</code> を投げます。</p>
+</blockquote>
+<h3 id="_-1" class="tsd-anchor-link"><code>parseChords(str, bpm = 120)</code><a href="#_-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>コード進行の文字列を、時刻つきイベント列に変換します。</p>
+<pre><code class="js"><span class="hl-0">parseChords</span><span class="hl-1">(</span><span class="hl-2">&quot;C | G | Am | F&quot;</span><span class="hl-1">, </span><span class="hl-6">120</span><span class="hl-1">);</span><br/><span class="hl-3">// [</span><br/><span class="hl-3">//   { key: &quot;C&quot;, chord: &quot;&quot;,  when: 0, duration: 2 },</span><br/><span class="hl-3">//   { key: &quot;G&quot;, chord: &quot;&quot;,  when: 2, duration: 2 },</span><br/><span class="hl-3">//   { key: &quot;A&quot;, chord: &quot;m&quot;, when: 4, duration: 2 },</span><br/><span class="hl-3">//   { key: &quot;F&quot;, chord: &quot;&quot;,  when: 6, duration: 2 },</span><br/><span class="hl-3">// ]</span>
+</code><button type="button">Copy</button></pre>
+
+<p>記法:</p>
+<ul>
+<li>行ごとに <code>|</code> <code>l</code> <code>ｌ</code> <code>→</code> で小節を区切る</li>
+<li><code>=</code> 直前コードの継続 / <code>%</code> 直前コードの繰り返し</li>
+<li><code>_</code> 休符 / <code>N</code>・<code>N.C.</code> ノーコード</li>
+<li><code>#</code> で始まる行はコメント</li>
+</ul>
+<p><code>key</code> と <code>chord</code> を連結して <code>parseChord</code> に渡せば、各コードの構成音が得られます。</p>
+<pre><code class="js"><span class="hl-4">for</span><span class="hl-1"> (</span><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-8">ev</span><span class="hl-1"> </span><span class="hl-7">of</span><span class="hl-1"> </span><span class="hl-0">parseChords</span><span class="hl-1">(</span><span class="hl-2">&quot;C | Am | F | G&quot;</span><span class="hl-1">)) {</span><br/><span class="hl-1">  </span><span class="hl-7">const</span><span class="hl-1"> { </span><span class="hl-8">notes</span><span class="hl-1"> } = </span><span class="hl-0">parseChord</span><span class="hl-1">(</span><span class="hl-2">`</span><span class="hl-7">${</span><span class="hl-5">ev</span><span class="hl-9">.</span><span class="hl-5">key</span><span class="hl-7">}${</span><span class="hl-5">ev</span><span class="hl-9">.</span><span class="hl-5">chord</span><span class="hl-7">}</span><span class="hl-2">`</span><span class="hl-1">);</span><br/><span class="hl-1">  </span><span class="hl-3">// ev.when / ev.duration（秒）に合わせてノートを鳴らす</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="b-構成音-→-コードネーム" class="tsd-anchor-link">(B) 構成音 → コードネーム<a href="#b-構成音-→-コードネーム" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<h3 id="_-2" class="tsd-anchor-link"><code>detectChord(notes, options?)</code><a href="#_-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>構成音からコードネームを推定します。一般性と基本形/転回形で順位づけした候補配列を返します。</p>
+<pre><code class="js"><span class="hl-0">detectChord</span><span class="hl-1">([</span><span class="hl-6">0</span><span class="hl-1">, </span><span class="hl-6">4</span><span class="hl-1">, </span><span class="hl-6">7</span><span class="hl-1">]);          </span><span class="hl-3">// [{ symbol: &quot;C&quot;, ... }, ...]</span><br/><span class="hl-0">detectChord</span><span class="hl-1">([</span><span class="hl-6">60</span><span class="hl-1">, </span><span class="hl-6">64</span><span class="hl-1">, </span><span class="hl-6">67</span><span class="hl-1">, </span><span class="hl-6">71</span><span class="hl-1">]);   </span><span class="hl-3">// [{ symbol: &quot;CM7&quot;, ... }]  MIDIノート番号でも可</span><br/><span class="hl-0">detectChord</span><span class="hl-1">([</span><span class="hl-6">4</span><span class="hl-1">, </span><span class="hl-6">7</span><span class="hl-1">, </span><span class="hl-6">12</span><span class="hl-1">])[</span><span class="hl-6">0</span><span class="hl-1">];      </span><span class="hl-3">// { symbol: &quot;C/E&quot;, inversion: true, root: 0, bass: 4, ... }</span><br/><span class="hl-0">detectChord</span><span class="hl-1">([</span><span class="hl-6">0</span><span class="hl-1">, </span><span class="hl-6">3</span><span class="hl-1">, </span><span class="hl-6">7</span><span class="hl-1">], { </span><span class="hl-5">flat:</span><span class="hl-1"> </span><span class="hl-7">true</span><span class="hl-1"> })[</span><span class="hl-6">0</span><span class="hl-1">].</span><span class="hl-5">symbol</span><span class="hl-1">; </span><span class="hl-3">// &quot;Cm&quot;（フラット表記）</span>
+</code><button type="button">Copy</button></pre>
+
+<p>候補の各要素:</p>
+<pre><code class="ts"><span class="hl-7">interface</span><span class="hl-1"> </span><span class="hl-10">ChordCandidate</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-5">symbol</span><span class="hl-1">: </span><span class="hl-10">string</span><span class="hl-1">;      </span><span class="hl-3">// 推定コードネーム（転回形は &quot;C/E&quot; のようにベース併記）</span><br/><span class="hl-1">  </span><span class="hl-5">rootSymbol</span><span class="hl-1">: </span><span class="hl-10">string</span><span class="hl-1">;  </span><span class="hl-3">// 転回形を考慮しない基本形（&quot;C&quot;）</span><br/><span class="hl-1">  </span><span class="hl-5">root</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">;        </span><span class="hl-3">// ルートの pitch class</span><br/><span class="hl-1">  </span><span class="hl-5">quality</span><span class="hl-1">: </span><span class="hl-10">string</span><span class="hl-1">;     </span><span class="hl-3">// クオリティ部分（&quot;m7&quot; など）</span><br/><span class="hl-1">  </span><span class="hl-5">bass</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">;        </span><span class="hl-3">// 最低音の pitch class</span><br/><span class="hl-1">  </span><span class="hl-5">inversion</span><span class="hl-1">: </span><span class="hl-10">boolean</span><span class="hl-1">;  </span><span class="hl-3">// ベース ≠ ルート（転回形 / 分数コード）か</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>オプション</th>
+<th>既定</th>
+<th>説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>flat</code></td>
+<td><code>false</code></td>
+<td>音名をフラット表記（<code>Db</code> 等）にする</td>
+</tr>
+<tr>
+<td><code>bass</code></td>
+<td>最小値</td>
+<td>ベース音として扱う値を明示（pitch class のみで音域情報がないとき用）</td>
+</tr>
+</tbody>
+</table>
+<p>入力は <strong>pitch class（0〜11）</strong> でも <strong>MIDI ノート番号</strong> でも構いません（オクターブは無視、最低音をベースとして転回形を判定）。完全一致のみを返し、見つからなければ空配列です。</p>
+<h4 id="しくみ" class="tsd-anchor-link">しくみ<a href="#しくみ" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>検出テーブルは <code>parseChord</code> 自身で生成しています（<code>C</code> を各クオリティに付けて構成音を求め、その pitch class 集合を逆引きキーにする）。そのため <strong>(A) と (B) の解釈は必ず一致</strong>し、<code>detectChord</code> の <code>rootSymbol</code> を <code>parseChord</code> に通すと元の構成音へ戻ります（往復一致）。検出対象のクオリティ一覧は <code>QUALITIES</code> で参照できます。</p>
+<h2 id="その他のエクスポート" class="tsd-anchor-link">その他のエクスポート<a href="#その他のエクスポート" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<ul>
+<li><code>noteName(pc, flat?)</code> … pitch class → 音名（<code>0 → &quot;C&quot;</code>）</li>
+<li><code>SHARP_NAMES</code> / <code>FLAT_NAMES</code> … 音名テーブル</li>
+<li><code>toPitchClass(n)</code> … 任意の整数を 0〜11 に正規化</li>
+<li><code>QUALITIES</code> … 検出対象コードクオリティの定義一覧（優先度順）</li>
+</ul>
+<h2 id="由来" class="tsd-anchor-link">由来<a href="#由来" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>(A) のパーサは <a href="https://github.com/onjmin">onjmin/piano</a> の <code>parseChord.mjs</code> / <code>parseChords.mjs</code> を TypeScript へ移植し、外部依存（<code>SortedSet</code> / <code>toHan</code>）を内製の軽量実装へ置き換えたものです。<code>maj7</code> がメジャー7thとして解釈されるよう、元実装の取りこぼしを修正しています。(B) は本ライブラリ独自の逆引き方式です。</p>
+<h2 id="開発" class="tsd-anchor-link">開発<a href="#開発" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="sh"><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">install</span><br/><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">build</span><span class="hl-1">      </span><span class="hl-3"># tsup で dist を生成</span><br/><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1">       </span><span class="hl-3"># node:test</span><br/><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">typecheck</span><br/><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">dev</span><span class="hl-1">        </span><span class="hl-3"># ビルド + ローカルデモサーバ（http://localhost:40299）</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="license" class="tsd-anchor-link">License<a href="#license" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>MIT © onjmin</p>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#onjminchord-parser"><span>@onjmin/chord-<wbr/>parser</span></a><ul><li><a href="#インストール"><span>インストール</span></a></li><li><a href="#a-コードネーム-→-構成音"><span>(<wbr/>A) コードネーム → 構成音</span></a></li><li><ul><li><a href="#_"><span></span></a></li><li><a href="#_-1"><span></span></a></li></ul></li><li><a href="#b-構成音-→-コードネーム"><span>(<wbr/>B) 構成音 → コードネーム</span></a></li><li><ul><li><a href="#_-2"><span></span></a></li><li><ul><li><a href="#しくみ"><span>しくみ</span></a></li></ul></li></ul></li><li><a href="#その他のエクスポート"><span>その他のエクスポート</span></a></li><li><a href="#由来"><span>由来</span></a></li><li><a href="#開発"><span>開発</span></a></li><li><a href="#license"><span>License</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">@onjmin/chord-parser</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
