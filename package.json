@@ -2,7 +2,7 @@
 	"author": "onjmin",
 	"license": "MIT",
 	"name": "@onjmin/chord-parser",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "コードネーム（chord symbol）⇄ 構成音（chord tones）を相互変換する、依存ゼロの軽量パーサ",
 	"homepage": "https://onjmin.github.io/chord-parser",
 	"repository": {
