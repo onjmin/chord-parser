@@ -390,24 +390,45 @@ var detectChord = (notes, options = {}) => {
   );
   const scored = [];
   for (const root of pcs) {
-    const rel = pcs.map((pc) => toPitchClass(pc - root)).sort((a, b) => a - b);
-    const def = QUALITY_BY_PCSET.get(rel.join(","));
-    if (!def) continue;
-    const rootSymbol = noteName(root, flat) + def.quality;
-    const inversion = root !== bass;
-    scored.push({
-      priority: def.priority,
-      candidate: {
-        symbol: inversion ? `${rootSymbol}/${noteName(bass, flat)}` : rootSymbol,
-        rootSymbol,
-        root,
-        quality: def.quality,
-        bass,
-        inversion
+    const relSet = new Set(pcs.map((pc) => toPitchClass(pc - root)));
+    for (const def of QUALITY_BY_PCSET.values()) {
+      let matchCount = 0;
+      let hasRoot = false;
+      for (const pc of def.pitchClasses) {
+        if (relSet.has(pc)) {
+          matchCount++;
+          if (pc === 0) hasRoot = true;
+        }
       }
-    });
+      if (!hasRoot) continue;
+      if (matchCount < Math.min(2, def.pitchClasses.length)) continue;
+      const missingCount = def.pitchClasses.length - matchCount;
+      let extraCount = 0;
+      const defSet = new Set(def.pitchClasses);
+      for (const pc of relSet) {
+        if (!defSet.has(pc)) {
+          extraCount++;
+        }
+      }
+      const score = matchCount * 2 - missingCount * 1 - extraCount * 0.5;
+      const rootSymbol = noteName(root, flat) + def.quality;
+      const inversion = root !== bass;
+      scored.push({
+        score,
+        priority: def.priority,
+        candidate: {
+          symbol: inversion ? `${rootSymbol}/${noteName(bass, flat)}` : rootSymbol,
+          rootSymbol,
+          root,
+          quality: def.quality,
+          bass,
+          inversion
+        }
+      });
+    }
   }
   scored.sort((a, b) => {
+    if (Math.abs(a.score - b.score) > 1e-3) return b.score - a.score;
     if (a.candidate.inversion !== b.candidate.inversion)
       return a.candidate.inversion ? 1 : -1;
     if (a.priority !== b.priority) return a.priority - b.priority;
