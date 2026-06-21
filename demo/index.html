@@ -195,6 +195,7 @@
 </div>
 
 <script type="module">
+	import MidiParser from "https://cdn.jsdelivr.net/npm/midi-parser-js@4.0.4/+esm";
 	const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
 	const {
 		parseChord, detectChord, noteName,
@@ -326,64 +327,66 @@
 	const midiInfo = document.getElementById("midiInfo");
 	const fmt = (s) => (Math.round(s * 10) / 10).toString();
 
-	// 依存ゼロの最小 Standard MIDI File パーサ。
-	// ノートオン/オフとテンポ変化を読み、絶対秒の TimedNote[] に変換する。
+	// midi-parser-js を利用して、絶対秒の TimedNote[] に変換する。
 	function parseMidi(buf) {
-		const dv = new DataView(buf);
-		let p = 0;
-		const u8 = () => dv.getUint8(p++);
-		const u16 = () => { const v = dv.getUint16(p); p += 2; return v; };
-		const u32 = () => { const v = dv.getUint32(p); p += 4; return v; };
-		const tag = () => { let s = ""; for (let i = 0; i < 4; i++) s += String.fromCharCode(u8()); return s; };
-		const vlq = () => { let v = 0; while (true) { const b = u8(); v = (v << 7) | (b & 0x7f); if (!(b & 0x80)) break; } return v; };
-
-		if (tag() !== "MThd") throw new Error("MIDIファイルではありません");
-		const hlen = u32();
-		u16(); // format
-		const ntracks = u16();
-		const division = u16();
+		const midi = MidiParser.parse(new Uint8Array(buf));
+		const division = midi.timeDivision;
+		if (!division) throw new Error("MIDIの division 情報が見つかりません");
 		if (division & 0x8000) throw new Error("SMPTEタイムコードのMIDIは未対応です");
-		p = 8 + hlen;
 
 		const tempos = []; // { tick, us }
 		const raw = []; // { s, e, note }
-		for (let t = 0; t < ntracks; t++) {
-			if (tag() !== "MTrk") { const len = u32(); p += len; continue; }
-			const end = p + u32();
-			let tick = 0, running = 0;
+		for (const trk of midi.track) {
+			let tick = 0;
 			const pending = {}; // (ch<<8|note) -> startTick
-			while (p < end) {
-				tick += vlq();
-				const peek = dv.getUint8(p);
-				let status;
-				if (peek & 0x80) { status = peek; p++; if (status < 0xf0) running = status; }
-				else status = running;
-				const type = status & 0xf0;
-				if (type === 0x90) {
-					const note = u8(), vel = u8(), k = ((status & 0x0f) << 8) | note;
-					if (vel > 0) pending[k] = tick;
-					else if (pending[k] != null) { raw.push({ s: pending[k], e: tick, note }); delete pending[k]; }
-				} else if (type === 0x80) {
-					const note = u8(); u8(); const k = ((status & 0x0f) << 8) | note;
-					if (pending[k] != null) { raw.push({ s: pending[k], e: tick, note }); delete pending[k]; }
-				} else if (type === 0xa0 || type === 0xb0 || type === 0xe0) { p += 2; }
-				else if (type === 0xc0 || type === 0xd0) { p += 1; }
-				else if (status === 0xff) {
-					const mt = u8(), len = vlq();
-					if (mt === 0x51 && len === 3) tempos.push({ tick, us: (u8() << 16) | (u8() << 8) | u8() });
-					else p += len;
-				} else if (status === 0xf0 || status === 0xf7) { p += vlq(); }
-				else { p = end; }
+			for (const event of trk.event) {
+				tick += event.deltaTime;
+				if (event.type === 0xff && event.metaType === 0x51) {
+					let us;
+					if (typeof event.data === "number") {
+						us = event.data;
+					} else {
+						us = (event.data[0] << 16) | (event.data[1] << 8) | event.data[2];
+					}
+					tempos.push({ tick, us });
+				} else if (event.type === 9) { // Note On
+					const note = event.data[0];
+					const vel = event.data[1];
+					const ch = event.channel ?? 0;
+					if (ch === 9) continue; // ドラムトラックは除外
+					const k = (ch << 8) | note;
+					if (vel > 0) {
+						pending[k] = tick;
+					} else if (pending[k] != null) {
+						raw.push({ s: pending[k], e: tick, note });
+						delete pending[k];
+					}
+				} else if (event.type === 8) { // Note Off
+					const note = event.data[0];
+					const ch = event.channel ?? 0;
+					if (ch === 9) continue; // ドラムトラックは除外
+					const k = (ch << 8) | note;
+					if (pending[k] != null) {
+						raw.push({ s: pending[k], e: tick, note });
+						delete pending[k];
+					}
+				}
 			}
-			for (const k in pending) raw.push({ s: pending[k], e: tick, note: k & 0xff });
-			p = end;
+			for (const k in pending) {
+				raw.push({ s: pending[k], e: tick, note: k & 0xff });
+			}
 		}
 
 		if (!tempos.length || tempos[0].tick > 0) tempos.unshift({ tick: 0, us: 500000 });
 		tempos.sort((a, b) => a.tick - b.tick);
 		const tickToSec = (tk) => {
 			let sec = 0, last = 0, us = tempos[0].us;
-			for (const c of tempos) { if (c.tick > tk) break; sec += ((c.tick - last) * us) / division / 1e6; last = c.tick; us = c.us; }
+			for (const c of tempos) {
+				if (c.tick > tk) break;
+				sec += ((c.tick - last) * us) / division / 1e6;
+				last = c.tick;
+				us = c.us;
+			}
 			return sec + ((tk - last) * us) / division / 1e6;
 		};
 
