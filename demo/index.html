@@ -122,9 +122,24 @@
 		content: ""; flex: 1; height: 1px; background: var(--border);
 	}
 	.tl-label { font-size: 11px; color: var(--muted); margin: 14px 0 5px; }
-	.band { display: flex; width: 100%; gap: 3px; align-items: stretch; }
+	.band-wrapper {
+		width: 100%;
+		overflow-x: auto;
+		background: #0f1115;
+		border-radius: 8px;
+		border: 1px solid var(--border);
+		padding: 4px;
+		margin-bottom: 8px;
+	}
+	.band {
+		display: flex;
+		gap: 3px;
+		align-items: stretch;
+		min-width: 100%;
+	}
 	.kseg, .cseg {
-		min-width: 0; overflow: hidden; text-align: center;
+		min-width: 60px;
+		text-align: center;
 		border: 1px solid var(--border); border-radius: 6px; padding: 6px 3px;
 		white-space: nowrap;
 	}
@@ -135,6 +150,57 @@
 	.cseg .cs { font: 14px ui-monospace, monospace; color: var(--accent2); }
 	.cseg .cd { font-size: 11px; color: var(--accent); }
 	.cseg .ct { font-size: 10px; color: var(--muted); }
+
+	/* 詳細テーブル */
+	.detail-table-wrapper {
+		max-height: 280px;
+		overflow-y: auto;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		background: #0f1115;
+		margin-top: 8px;
+	}
+	.detail-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 13px;
+		text-align: left;
+	}
+	.detail-table th, .detail-table td {
+		padding: 8px 12px;
+		border-bottom: 1px solid var(--border);
+	}
+	.detail-table th {
+		background: #1a1d24;
+		color: var(--muted);
+		font-weight: 600;
+		position: sticky;
+		top: 0;
+		z-index: 10;
+	}
+	.detail-table tr:hover {
+		background: #1d2330;
+	}
+	.detail-table td.time {
+		font-family: ui-monospace, monospace;
+		color: var(--accent3);
+	}
+	.detail-table td.chord {
+		font-family: ui-monospace, monospace;
+		font-weight: bold;
+		color: var(--accent2);
+	}
+	.detail-table td.key {
+		font-family: ui-monospace, monospace;
+		color: var(--accent3);
+	}
+	.detail-table td.degree {
+		font-family: ui-monospace, monospace;
+		color: var(--accent);
+	}
+	.detail-table td.dur {
+		color: var(--muted);
+	}
 </style>
 </head>
 <body>
@@ -406,6 +472,17 @@
 			progOut.innerHTML = `<span class="err">コードを検出できませんでした</span>`;
 			return;
 		}
+
+		// 曲全体の長さ（秒）を見積もる。タイムライン全体のフレックス比の目安にする
+		const totalDuration = Math.max(
+			...chords.map(c => c.when + c.duration),
+			...keys.map(k => k.when + k.duration),
+			1
+		);
+
+		// 横幅（ピクセル）を曲の長さに応じて動的に設定（1秒あたり15px、最低800px）
+		const bandWidth = Math.max(800, Math.round(totalDuration * 15));
+
 		const keyBand = keys
 			.map(
 				(k) =>
@@ -423,11 +500,35 @@
 					`<div class="ct">${fmt(c.when)}s</div></div>`,
 			)
 			.join("");
+
+		// 詳細テーブル用の行 (rows) の作成
+		const rows = chords
+			.map((c) => {
+				// このコードの開始時刻におけるキーを特定する
+				const curKey = keys.find(k => k.when <= c.when && c.when < k.when + k.duration) || keys[0];
+				const keyName = curKey ? curKey.key.name : "-";
+				return `<tr>` +
+					`<td class="time">${fmt(c.when)}s</td>` +
+					`<td class="chord">${c.symbol}</td>` +
+					`<td class="key">${keyName}</td>` +
+					`<td class="degree">${c.degree ?? "-"}</td>` +
+					`<td class="dur">${fmt(c.duration)}s</td>` +
+					`</tr>`;
+			})
+			.join("");
+
 		progOut.innerHTML =
 			`<div class="tl-label">キー領域（転調検出）</div>` +
-			`<div class="band">${keyBand}</div>` +
+			`<div class="band-wrapper"><div class="band" style="width:${bandWidth}px">${keyBand}</div></div>` +
 			`<div class="tl-label">コード進行（ローマ数字 = キーに対する度数）</div>` +
-			`<div class="band">${chordBand}</div>`;
+			`<div class="band-wrapper"><div class="band" style="width:${bandWidth}px">${chordBand}</div></div>` +
+			`<div class="tl-label">推定コード詳細リスト</div>` +
+			`<div class="detail-table-wrapper">` +
+			`<table class="detail-table">` +
+			`<thead><tr><th>開始時間</th><th>コード</th><th>キー</th><th>度数</th><th>長さ</th></tr></thead>` +
+			`<tbody>${rows}</tbody>` +
+			`</table>` +
+			`</div>`;
 	}
 
 	// notes(TimedNote[]) を解析。1小節未満の細かなキーのちらつきは平滑化する。
