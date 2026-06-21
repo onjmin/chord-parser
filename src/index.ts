@@ -9,6 +9,27 @@ export {
 	type DetectChordOptions,
 	detectChord,
 } from "./detect-chord";
+// (C) 曲全体のノート → キー（調）/ 転調
+export {
+	chordEventsToNotes,
+	type DetectedKey,
+	type DetectKeyChangesOptions,
+	type DetectKeyOptions,
+	detectKey,
+	detectKeyChanges,
+	type KeyCandidate,
+	type KeyMode,
+	type KeySegment,
+	type TimedNote,
+	type WeightedNote,
+} from "./detect-key";
+// (D) 曲全体のノート → 時間軸に沿ったコード進行（＋キー）
+export {
+	type ChordSegment,
+	type DetectProgressionOptions,
+	detectProgression,
+	type ProgressionAnalysis,
+} from "./detect-progression";
 // 音名ユーティリティ
 export {
 	FLAT_NAMES,

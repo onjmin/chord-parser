@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { detectChord } from "./detect-chord";
+import { chordEventsToNotes, detectKey, detectKeyChanges } from "./detect-key";
+import { detectProgression } from "./detect-progression";
 import { parseChord } from "./parse-chord";
 import { parseChords } from "./parse-chords";
 
@@ -71,6 +73,149 @@ test("round trip: parseChord -> detectChord -> same pitch classes", () => {
 		const back = parseChord(detected[0].rootSymbol);
 		assert.deepEqual(back.pitchClasses, parsed.pitchClasses, sym);
 	}
+});
+
+// ---- (C) detectKey --------------------------------------------------
+
+test("detectKey: C major scale → C major", () => {
+	const top = detectKey([0, 2, 4, 5, 7, 9, 11])[0];
+	assert.equal(top.tonic, 0);
+	assert.equal(top.mode, "major");
+	assert.equal(top.name, "C major");
+});
+
+test("detectKey: tonic-emphasized A minor → A minor", () => {
+	// A natural minor と C major は構成音が同じ。主音 A を強調して曖昧さを解消する。
+	const notes = [
+		{ pitch: 9, duration: 8 }, // A（主音）
+		{ pitch: 4, duration: 6 }, // E（属音）
+		{ pitch: 0, duration: 4 }, // C
+		{ pitch: 11, duration: 2 }, // B
+		{ pitch: 2, duration: 2 }, // D
+		{ pitch: 5, duration: 1 }, // F
+		{ pitch: 7, duration: 1 }, // G
+	];
+	const top = detectKey(notes)[0];
+	assert.equal(top.tonic, 9);
+	assert.equal(top.mode, "minor");
+});
+
+test("detectKey: weighting by duration shifts the tonic", () => {
+	// G を強調した G メジャー的なノート群
+	const notes = [
+		{ pitch: 7, duration: 8 }, // G
+		{ pitch: 11, duration: 4 }, // B
+		{ pitch: 2, duration: 4 }, // D
+		{ pitch: 6, duration: 2 }, // F#（G major の導音）
+	];
+	const top = detectKey(notes)[0];
+	assert.equal(top.tonic, 7); // G
+});
+
+test("detectKey: empty input", () => {
+	assert.deepEqual(detectKey([]), []);
+});
+
+// ---- (C) detectKeyChanges (転調) ------------------------------------
+
+// 短い進行を繰り返して「曲」らしい長さにする（窓が十分なコンテキストを持つように）。
+const loop = (line: string, times: number): string =>
+	Array(times).fill(line).join(" | ");
+
+test("detectKeyChanges: no modulation → single segment", () => {
+	const notes = chordEventsToNotes(parseChords(loop("C | F | G | C", 4), 120));
+	const segments = detectKeyChanges(notes);
+	assert.equal(segments.length, 1);
+	assert.equal(segments[0].key.name, "C major");
+});
+
+test("detectKeyChanges: detects a modulation across the song", () => {
+	// 前半 C major、後半 E major へ転調する「曲」
+	const first = parseChords(loop("C | F | G | C", 4), 120);
+	const secondRaw = parseChords(loop("E | A | B | E", 4), 120);
+	// 後半イベントの時刻を前半の直後へずらす
+	const offset =
+		first[first.length - 1].when + first[first.length - 1].duration;
+	const second = secondRaw.map((e) => ({ ...e, when: e.when + offset }));
+	const notes = chordEventsToNotes([...first, ...second]);
+
+	const segments = detectKeyChanges(notes, { minSegmentDuration: 1 });
+	assert.ok(segments.length >= 2, "transition should yield ≥2 segments");
+	assert.equal(segments[0].key.name, "C major");
+	assert.equal(segments[segments.length - 1].key.tonic, 4); // E
+	// セグメントは時間順かつ連続している
+	for (let i = 1; i < segments.length; i++) {
+		assert.ok(segments[i].when >= segments[i - 1].when);
+	}
+});
+
+test("detectKeyChanges: empty input", () => {
+	assert.deepEqual(detectKeyChanges([]), []);
+});
+
+// ---- (D) detectProgression -----------------------------------------
+
+test("detectProgression: recovers chord symbols from notes", () => {
+	const notes = chordEventsToNotes(parseChords("CM7 | Am7 | Dm7 | G7", 120));
+	const { chords } = detectProgression(notes, { bpm: 120 });
+	assert.deepEqual(
+		chords.map((c) => c.symbol),
+		["CM7", "Am7", "Dm7", "G7"],
+	);
+});
+
+test("detectProgression: bass disambiguates Am7 from C6", () => {
+	// {A,C,E,G} は C6 と Am7 で同一構成音。ベース A により Am へ解決する。
+	const notes = chordEventsToNotes(parseChords("C | G | Am | F", 120));
+	const { chords } = detectProgression(notes, { bpm: 120 });
+	assert.deepEqual(
+		chords.map((c) => c.symbol),
+		["C", "G", "Am", "F"],
+	);
+});
+
+test("detectProgression: detects inversion as a slash chord", () => {
+	const notes = chordEventsToNotes(parseChords("C/E | F | G | C", 120));
+	const { chords } = detectProgression(notes, { bpm: 120 });
+	assert.equal(chords[0].symbol, "C/E");
+	assert.equal(chords[0].inversion, true);
+	assert.equal(chords[0].root, 0);
+	assert.equal(chords[0].bass, 4); // E
+});
+
+test("detectProgression: assigns Roman-numeral degrees in the key", () => {
+	const notes = chordEventsToNotes(parseChords(loop("C | G | Am | F", 4), 120));
+	const { keys, chords } = detectProgression(notes, { bpm: 120 });
+	assert.equal(keys.length, 1);
+	assert.equal(keys[0].key.name, "C major");
+	assert.deepEqual(
+		chords.slice(0, 4).map((c) => c.degree),
+		["I", "V", "vi", "IV"],
+	);
+});
+
+test("detectProgression: degrees follow a modulation", () => {
+	const first = parseChords(loop("C | G | Am | F", 4), 120);
+	const secondRaw = parseChords(loop("E | B | C#m | A", 4), 120);
+	const offset =
+		first[first.length - 1].when + first[first.length - 1].duration;
+	const second = secondRaw.map((e) => ({ ...e, when: e.when + offset }));
+	const notes = chordEventsToNotes([...first, ...second]);
+
+	const { keys, chords } = detectProgression(notes, {
+		bpm: 120,
+		minSegmentDuration: 2,
+	});
+	assert.ok(keys.length >= 2);
+	// 後半（E major 領域）の最初のコードは E = I 度になる
+	const afterMod = chords.find((c) => c.when >= offset && c.symbol === "E");
+	assert.ok(afterMod, "E chord should appear after modulation");
+	assert.equal(afterMod?.degree, "I");
+	assert.equal(afterMod?.key?.name, "E major");
+});
+
+test("detectProgression: empty input", () => {
+	assert.deepEqual(detectProgression([]), { keys: [], chords: [] });
 });
 
 // ---- parseChords ----------------------------------------------------
