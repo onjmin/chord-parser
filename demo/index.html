@@ -4,233 +4,894 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>@onjmin/chord-parser demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&family=VT323&display=swap" rel="stylesheet">
 <style>
-	:root {
-		--bg: #0f1115;
-		--panel: #1a1d24;
-		--border: #2c313c;
-		--fg: #e6e8ec;
-		--muted: #8b93a1;
-		--accent: #6ea8fe;
-		--accent2: #6effc1;
-		--accent3: #ffd479;
-		--key-w: #f4f5f7;
-		--key-b: #20242c;
-		--lit: #6ea8fe;
+	@font-face {
+		font-family: 'PixelMplus12 Regular';
+		src: url('https://cdn.leafscape.be/PixelMplus/PixelMplus12-Regular_web.woff2') format('woff2');
 	}
-	* { box-sizing: border-box; }
+	@font-face {
+		font-family: 'PixelMplus12 Bold';
+		src: url('https://cdn.leafscape.be/PixelMplus/PixelMplus12-Bold_web.woff2') format('woff2');
+	}
+	:root {
+		--bg-base: #0c0b11;
+		--bg-panel: #14131d;
+		--border-color: #222030;
+		--text-main: #e2e1ec;
+		--text-muted: #72708a;
+
+		--accent-a: #ff3a67; /* magenta/pink */
+		--accent-b: #00f0ff; /* cyan */
+		--accent-c: #ffdf00; /* gold */
+
+		--key-w: #efefe8;
+		--key-b: #201f2b;
+
+		/* フォント定義 */
+		--font-system: system-ui, -apple-system, "Segoe UI", sans-serif;
+		--font-pixel-ja: "PixelMplus12 Regular", sans-serif;
+		--font-pixel-ja-bold: "PixelMplus12 Bold", sans-serif;
+		--font-pixel-en: "Pixelify Sans", "VT323", monospace;
+	}
+	* {
+		box-sizing: border-box;
+	}
 	body {
 		margin: 0;
-		background: var(--bg);
-		color: var(--fg);
-		font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+		background-color: var(--bg-base);
+		background-image: 
+			linear-gradient(rgba(0, 0, 0, 0.25) 50%, transparent 50%),
+			radial-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+		background-size: 100% 4px, 16px 16px;
+		color: var(--text-main);
+		font-family: var(--font-system);
 		line-height: 1.6;
-		padding: 24px 16px 64px;
+		padding: 32px 16px 80px;
 	}
-	.wrap { max-width: 760px; margin: 0 auto; }
-	h1 { font-size: 22px; margin: 0 0 4px; }
-	.sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
-	.panel {
-		background: var(--panel);
-		border: 1px solid var(--border);
-		border-radius: 12px;
-		padding: 18px;
-		margin-bottom: 20px;
+	.wrap {
+		max-width: 760px;
+		margin: 0 auto;
 	}
-	.panel h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent); }
-	.panel.b h2 { color: var(--accent2); }
-	.panel.c h2 { color: var(--accent3); }
-	label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-	input[type="text"] {
-		width: 100%;
-		background: #0f1115;
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		color: var(--fg);
-		font-size: 16px;
-		padding: 10px 12px;
-		font-family: ui-monospace, monospace;
-	}
-	input:focus { outline: none; border-color: var(--accent); }
-	.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-	.chip {
-		font: 12px ui-monospace, monospace;
-		background: #232833;
-		border: 1px solid var(--border);
-		border-radius: 999px;
-		padding: 3px 10px;
-		cursor: pointer;
-		color: var(--muted);
-	}
-	.chip:hover { color: var(--fg); border-color: var(--accent); }
-	.out { margin-top: 14px; font-size: 14px; }
-	.out code { font-family: ui-monospace, monospace; color: var(--accent2); }
-	.cands { list-style: none; padding: 0; margin: 8px 0 0; }
-	.cands li {
-		padding: 6px 10px;
-		border-radius: 8px;
+
+	/* --- Rack Header --- */
+	.rack-header {
 		display: flex;
-		gap: 10px;
-		align-items: baseline;
+		align-items: center;
+		justify-content: space-between;
+		background: #1b1a27;
+		border: 2px solid var(--border-color);
+		box-shadow: 4px 4px 0px #000;
+		padding: 12px 20px;
+		margin-bottom: 28px;
+		position: relative;
 	}
-	.cands li:first-child { background: #232833; }
-	.cands .sym { font: 16px ui-monospace, monospace; color: var(--accent2); min-width: 90px; }
-	.cands .meta { color: var(--muted); font-size: 12px; }
-	.err { color: #ff8a8a; font-size: 13px; }
-	/* keyboard */
-	.piano { position: relative; height: 90px; margin-top: 14px; user-select: none; }
-	.wkey, .bkey {
-		position: absolute; top: 0; cursor: pointer; border: 1px solid #000;
-		border-radius: 0 0 4px 4px;
+	.rack-header::before {
+		content: "";
+		position: absolute;
+		top: 4px; left: 4px; right: 4px; bottom: 4px;
+		border: 1px dashed rgba(255,255,255,0.05);
+		pointer-events: none;
 	}
-	.wkey { background: var(--key-w); height: 90px; }
-	.bkey { background: var(--key-b); height: 56px; z-index: 2; }
-	.wkey.lit { background: var(--lit); }
-	.bkey.lit { background: var(--accent); }
-	.foot { color: var(--muted); font-size: 12px; text-align: center; margin-top: 30px; }
-	a { color: var(--accent); }
-	/* progression timeline */
-	.field { display: flex; gap: 16px; align-items: flex-end; margin-bottom: 4px; }
-	.field > div { flex: 1; }
-	.field .narrow { flex: 0 0 90px; }
-	input[type="number"] {
+	.header-title {
+		text-align: center;
+		flex: 1;
+	}
+	.rack-header h1 {
+		font-family: var(--font-pixel-en);
+		font-size: 24px;
+		font-weight: 700;
+		margin: 0;
+		letter-spacing: 2px;
+		text-transform: uppercase;
+		text-shadow: 2px 2px 0px var(--accent-a), 4px 4px 0px #000;
+		color: #fff;
+	}
+	.rack-header .sub {
+		margin: 2px 0 0;
+		font-family: var(--font-pixel-en);
+		color: var(--accent-b);
+		font-size: 10px;
+		letter-spacing: 1.5px;
+		text-transform: uppercase;
+		opacity: 0.8;
+	}
+
+	/* VU Meters */
+	.vu-meter {
+		display: flex;
+		gap: 2px;
+		height: 32px;
+		align-items: flex-end;
+		padding: 3px 6px;
+		background: #08070d;
+		border: 2px solid var(--border-color);
+		box-shadow: inset 1px 1px 0px #000;
+	}
+	.vu-meter .bar {
+		width: 4px;
+		height: 10%;
+		background: #39ff14;
+	}
+	.vu-meter .bar:nth-child(4) { background: #ffd700; }
+	.vu-meter .bar:nth-child(5) { background: #ff073a; }
+
+	@keyframes vu-1 {
+		0%, 100% { height: 15%; } 45% { height: 85%; } 70% { height: 35%; }
+	}
+	@keyframes vu-2 {
+		0%, 100% { height: 40%; } 30% { height: 95%; } 80% { height: 50%; }
+	}
+	@keyframes vu-3 {
+		0%, 100% { height: 10%; } 50% { height: 65%; } 90% { height: 25%; }
+	}
+	.vu-meter .bar:nth-child(1) { animation: vu-1 0.7s infinite alternate ease-in-out; }
+	.vu-meter .bar:nth-child(2) { animation: vu-2 0.5s infinite alternate ease-in-out; }
+	.vu-meter .bar:nth-child(3) { animation: vu-3 0.6s infinite alternate ease-in-out; }
+	.vu-meter .bar:nth-child(4) { animation: vu-1 0.4s infinite alternate ease-in-out; }
+	.vu-meter .bar:nth-child(5) { animation: vu-2 0.8s infinite alternate ease-in-out; }
+
+	/* --- Panels --- */
+	.panel {
+		background: var(--bg-panel);
+		border: 2px solid var(--border-color);
+		box-shadow: 4px 4px 0px #000;
+		padding: 24px;
+		margin-bottom: 28px;
+		position: relative;
+	}
+	.panel h2 {
+		font-family: var(--font-pixel-ja-bold);
+		font-size: 15px;
+		font-weight: normal;
+		margin: 0 0 16px;
+		padding-bottom: 8px;
+		border-bottom: 2px dashed var(--border-color);
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.panel.a h2 { color: var(--accent-a); }
+	.panel.b h2 { color: var(--accent-b); }
+	.panel.c h2 { color: var(--accent-c); }
+
+	label {
+		display: block;
+		font-size: 11px;
+		color: var(--text-muted);
+		margin-bottom: 6px;
+		font-family: var(--font-system);
+		font-weight: normal;
+	}
+	input[type="text"], input[type="number"] {
 		width: 100%;
-		background: #0f1115;
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		color: var(--fg);
+		background: #08070d;
+		border: 2px solid var(--border-color);
+		color: var(--text-main);
+		font-family: var(--font-pixel-en);
 		font-size: 16px;
-		padding: 10px 12px;
-		font-family: ui-monospace, monospace;
+		padding: 8px 12px;
+		box-shadow: inset 2px 2px 0px rgba(0,0,0,0.5);
+		outline: none;
 	}
-	input[type="number"]:focus { outline: none; border-color: var(--accent3); }
+	.panel.a input[type="text"]:focus { border-color: var(--accent-a); }
+	.panel.b input[type="text"]:focus { border-color: var(--accent-b); }
+	.panel.c input[type="text"]:focus, .panel.c input[type="number"]:focus { border-color: var(--accent-c); }
+
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin: 10px 0 14px;
+	}
+	.chip {
+		font-family: var(--font-pixel-en);
+		font-size: 11px;
+		background: #1c1a26;
+		border: 2px solid var(--border-color);
+		padding: 3px 8px;
+		cursor: pointer;
+		color: var(--text-main);
+		box-shadow: 2px 2px 0px #000;
+		transition: transform 0.05s, box-shadow 0.05s;
+		user-select: none;
+	}
+	.chip:hover {
+		background: #232133;
+		color: #fff;
+	}
+	.chip:active {
+		transform: translate(2px, 2px);
+		box-shadow: 0px 0px 0px #000;
+	}
+	.panel.a .chip:hover { border-color: var(--accent-a); }
+	.panel.b .chip:hover { border-color: var(--accent-b); }
+	.panel.c .chip:hover { border-color: var(--accent-c); }
+
+	/* CRT Display style for Outputs */
+	.out {
+		margin-top: 14px;
+		font-size: 13px;
+		background: #06050a;
+		border: 2px solid var(--border-color);
+		padding: 12px 14px;
+		box-shadow: inset 2px 2px 0px #000;
+		position: relative;
+	}
+	.out::before {
+		content: "";
+		position: absolute;
+		top: 0; left: 0; right: 0; bottom: 0;
+		background: linear-gradient(rgba(18, 16, 26, 0) 50%, rgba(0, 0, 0, 0.2) 50%);
+		background-size: 100% 4px;
+		pointer-events: none;
+	}
+	.out-row {
+		display: inline-flex;
+		align-items: baseline;
+		margin-right: 18px;
+	}
+	.out-lbl {
+		font-family: var(--font-system);
+		font-size: 9px;
+		color: var(--text-muted);
+		margin-right: 6px;
+		letter-spacing: 0.5px;
+	}
+	.out code {
+		font-family: var(--font-pixel-en);
+		font-size: 15px;
+		font-weight: bold;
+		text-shadow: 0 0 3px currentColor;
+	}
+	.panel.a .out code { color: var(--accent-a); }
+	.panel.b .out code { color: var(--accent-b); }
+	.panel.c .out code { color: var(--accent-c); }
+
+	.cands {
+		list-style: none;
+		padding: 0;
+		margin: 6px 0 0;
+	}
+	.cands li {
+		padding: 4px 8px;
+		border: 1px solid transparent;
+		display: flex;
+		gap: 12px;
+		align-items: center;
+	}
+	.cands li:first-child {
+		background: #181725;
+		border-color: var(--border-color);
+		box-shadow: 2px 2px 0px #000;
+	}
+	.cands .sym {
+		font-family: var(--font-pixel-en);
+		font-size: 16px;
+		font-weight: bold;
+		color: var(--accent-b);
+		min-width: 90px;
+		text-shadow: 0 0 3px var(--accent-b);
+	}
+	.cands .meta {
+		color: var(--text-muted);
+		font-size: 11px;
+		font-family: var(--font-system);
+	}
+	.err {
+		color: var(--accent-a);
+		font-family: var(--font-pixel-ja-bold);
+		text-shadow: 0 0 3px var(--accent-a);
+	}
+
+	/* LED Pitch Class Monitor */
+	.led-monitor {
+		display: flex;
+		justify-content: space-between;
+		background: #08070d;
+		border: 2px solid var(--border-color);
+		padding: 6px 4px;
+		margin: 12px 0 6px;
+		box-shadow: inset 2px 2px 0px #000;
+	}
+	.led-node {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		flex: 1;
+	}
+	.led-node span {
+		font-family: var(--font-pixel-en);
+		font-size: 9px;
+		color: var(--text-muted);
+		margin-bottom: 2px;
+	}
+	.led {
+		width: 6px;
+		height: 6px;
+		background: #1c151b;
+		border: 1px solid var(--border-color);
+	}
+	.panel.a .led-node.lit .led {
+		background: var(--accent-a);
+		box-shadow: 0 0 6px var(--accent-a);
+		border-color: var(--accent-a);
+	}
+	.panel.b .led-node.lit .led {
+		background: var(--accent-b);
+		box-shadow: 0 0 6px var(--accent-b);
+		border-color: var(--accent-b);
+	}
+
+	/* Piano Keyboard */
+	.piano {
+		position: relative;
+		height: 90px;
+		margin: 0 0 12px;
+		user-select: none;
+		border: 2px solid var(--border-color);
+		background: var(--border-color);
+	}
+	.wkey, .bkey {
+		position: absolute;
+		top: 0;
+		cursor: pointer;
+		border: 1px solid var(--border-color);
+		box-sizing: border-box;
+	}
+	.wkey {
+		background: var(--key-w);
+		height: 86px;
+	}
+	.bkey {
+		background: var(--key-b);
+		height: 50px;
+		z-index: 2;
+		border-bottom-width: 3px;
+	}
+	.panel.a .wkey.lit {
+		background: var(--accent-a);
+		border-color: var(--accent-a);
+		box-shadow: inset 0 -4px 0 rgba(0,0,0,0.1), 0 0 8px var(--accent-a);
+	}
+	.panel.a .bkey.lit {
+		background: #ff5b83;
+		border-color: var(--accent-a);
+		box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 0 8px var(--accent-a);
+	}
+	.panel.b .wkey.lit {
+		background: var(--accent-b);
+		border-color: var(--accent-b);
+		box-shadow: inset 0 -4px 0 rgba(0,0,0,0.1), 0 0 8px var(--accent-b);
+	}
+	.panel.b .bkey.lit {
+		background: #5bebff;
+		border-color: var(--accent-b);
+		box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 0 8px var(--accent-b);
+	}
+
+	.foot {
+		color: var(--text-muted);
+		font-size: 11px;
+		text-align: center;
+		margin-top: 40px;
+	}
+	a {
+		color: var(--accent-b);
+		text-decoration: none;
+		border-bottom: 1.5px solid transparent;
+	}
+	a:hover {
+		border-bottom-color: var(--accent-b);
+	}
+
+	/* progression timeline */
+	.field {
+		display: flex;
+		gap: 16px;
+		align-items: flex-end;
+		margin-bottom: 8px;
+	}
+	.field > div {
+		flex: 1;
+	}
+	.field .narrow {
+		flex: 0 0 90px;
+	}
+
+	/* Tape Deck Style for Drop Area */
 	.drop {
-		display: flex; align-items: center; justify-content: center;
-		text-align: center; cursor: pointer;
-		border: 1px dashed var(--border); border-radius: 10px;
-		padding: 22px 12px; color: var(--muted); font-size: 13px;
-		background: #0f1115; transition: border-color .15s, color .15s, background .15s;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		cursor: pointer;
+		border: 2px solid var(--border-color);
+		background: #08070d;
+		padding: 24px 16px;
+		color: var(--text-muted);
+		font-size: 13px;
+		box-shadow: inset 2px 2px 0px rgba(0,0,0,0.6);
+		position: relative;
 	}
-	.drop:hover, .drop.over { border-color: var(--accent3); color: var(--fg); background: #14171e; }
-	.midiInfo { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 0; }
-	.midiInfo code { color: var(--accent3); font-family: ui-monospace, monospace; }
+	.drop::before, .drop::after {
+		content: "◎";
+		font-family: var(--font-pixel-en);
+		font-size: 22px;
+		color: #1a1924;
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		opacity: 0.4;
+		pointer-events: none;
+	}
+	.drop::before { left: 40px; }
+	.drop::after { right: 40px; }
+	
+	.drop:hover, .drop.over {
+		border-color: var(--accent-c);
+		color: var(--text-main);
+		background: #11101b;
+	}
+	.midiInfo {
+		font-size: 12px;
+		color: var(--text-muted);
+		margin-top: 8px;
+		min-height: 0;
+	}
+	.midiInfo code {
+		color: var(--accent-c);
+		font-family: var(--font-pixel-en);
+		font-weight: bold;
+		text-shadow: 0 0 3px var(--accent-c);
+	}
 	.orline {
-		display: flex; align-items: center; gap: 10px;
-		color: var(--muted); font-size: 11px; margin: 18px 0 4px;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		color: var(--text-muted);
+		font-size: 11px;
+		margin: 20px 0 10px;
 	}
 	.orline::before, .orline::after {
-		content: ""; flex: 1; height: 1px; background: var(--border);
+		content: "";
+		flex: 1;
+		height: 2px;
+		background: var(--border-color);
 	}
-	.tl-label { font-size: 11px; color: var(--muted); margin: 14px 0 5px; }
+	
+	.tl-label {
+		font-size: 11px;
+		color: var(--text-muted);
+		margin: 14px 0 5px;
+		font-family: var(--font-system);
+		font-weight: normal;
+	}
 	.band-wrapper {
 		width: 100%;
 		overflow-x: auto;
-		background: #0f1115;
-		border-radius: 8px;
-		border: 1px solid var(--border);
-		padding: 4px;
-		margin-bottom: 8px;
+		background: #08070d;
+		border: 2px solid var(--border-color);
+		padding: 6px;
+		margin-bottom: 12px;
+		box-shadow: inset 2px 2px 0px #000;
 	}
+	.band-wrapper::-webkit-scrollbar, .detail-table-wrapper::-webkit-scrollbar {
+		height: 8px;
+		width: 8px;
+	}
+	.band-wrapper::-webkit-scrollbar-track, .detail-table-wrapper::-webkit-scrollbar-track {
+		background: #08070d;
+	}
+	.band-wrapper::-webkit-scrollbar-thumb, .detail-table-wrapper::-webkit-scrollbar-thumb {
+		background: #1b1a27;
+		border: 2px solid #08070d;
+	}
+	.band-wrapper::-webkit-scrollbar-thumb:hover, .detail-table-wrapper::-webkit-scrollbar-thumb:hover {
+		background: var(--text-muted);
+	}
+
 	.band {
 		display: flex;
-		gap: 3px;
+		gap: 4px;
 		align-items: stretch;
 		min-width: 100%;
 	}
 	.kseg, .cseg {
 		min-width: 60px;
 		text-align: center;
-		border: 1px solid var(--border); border-radius: 6px; padding: 6px 3px;
+		border: 2px solid var(--border-color);
+		padding: 6px 4px;
 		white-space: nowrap;
+		box-shadow: 2px 2px 0px #000;
 	}
-	.kseg { background: #2a2418; }
-	.kseg .kn { font: 13px ui-monospace, monospace; color: var(--accent3); }
-	.kseg .kt { font-size: 10px; color: var(--muted); }
-	.cseg { background: #1d2330; }
-	.cseg .cs { font: 14px ui-monospace, monospace; color: var(--accent2); }
-	.cseg .cd { font-size: 11px; color: var(--accent); }
-	.cseg .ct { font-size: 10px; color: var(--muted); }
+	.kseg {
+		background: #302618;
+	}
+	.kseg .kn {
+		font-family: var(--font-pixel-en);
+		font-size: 13px;
+		font-weight: bold;
+		color: var(--accent-c);
+	}
+	.kseg .kt {
+		font-family: var(--font-system);
+		font-size: 9px;
+		color: var(--text-muted);
+	}
+	.cseg {
+		background: #141324;
+	}
+	.cseg .cs {
+		font-family: var(--font-pixel-en);
+		font-size: 14px;
+		font-weight: bold;
+		color: var(--accent-b);
+	}
+	.cseg .cd {
+		font-family: var(--font-system);
+		font-size: 10px;
+		color: var(--accent-a);
+	}
+	.cseg .ct {
+		font-family: var(--font-system);
+		font-size: 9px;
+		color: var(--text-muted);
+	}
 
-	/* 詳細テーブル */
+	/* Tracker Detail List Table */
 	.detail-table-wrapper {
 		max-height: 280px;
 		overflow-y: auto;
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		background: #0f1115;
-		margin-top: 8px;
+		border: 2px solid var(--border-color);
+		background: #08070d;
+		margin-top: 12px;
+		box-shadow: inset 2px 2px 0px #000;
 	}
 	.detail-table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 13px;
+		font-size: 12px;
 		text-align: left;
 	}
 	.detail-table th, .detail-table td {
 		padding: 8px 12px;
-		border-bottom: 1px solid var(--border);
+		border-bottom: 2px solid var(--border-color);
 	}
 	.detail-table th {
-		background: #1a1d24;
-		color: var(--muted);
-		font-weight: 600;
+		background: #151421;
+		color: var(--text-muted);
+		font-family: var(--font-system);
+		font-weight: bold;
 		position: sticky;
 		top: 0;
 		z-index: 10;
+		border-bottom: 2px solid var(--border-color);
 	}
 	.detail-table tr:hover {
-		background: #1d2330;
+		background: #100f1a;
 	}
 	.detail-table td.time {
-		font-family: ui-monospace, monospace;
-		color: var(--accent3);
+		font-family: var(--font-system);
+		color: var(--text-muted);
 	}
 	.detail-table td.chord {
-		font-family: ui-monospace, monospace;
+		font-family: var(--font-pixel-en);
+		font-size: 14px;
 		font-weight: bold;
-		color: var(--accent2);
+		color: var(--accent-b);
 	}
 	.detail-table td.key {
-		font-family: ui-monospace, monospace;
-		color: var(--accent3);
+		font-family: var(--font-pixel-en);
+		font-size: 13px;
+		color: var(--accent-c);
 	}
 	.detail-table td.degree {
-		font-family: ui-monospace, monospace;
-		color: var(--accent);
+		font-family: var(--font-pixel-en);
+		font-size: 12px;
+		color: var(--accent-a);
 	}
 	.detail-table td.dur {
-		color: var(--muted);
+		font-family: var(--font-system);
+		color: var(--text-muted);
+	}
+
+	/* progression timeline (Step Sequencer Style) */
+	.field {
+		display: flex;
+		gap: 16px;
+		align-items: flex-end;
+		margin-bottom: 8px;
+	}
+	.field > div {
+		flex: 1;
+	}
+	.field .narrow {
+		flex: 0 0 90px;
+	}
+
+	/* Tape Deck Style for Drop Area */
+	.drop {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		cursor: pointer;
+		border: 4px solid var(--border-color);
+		background: #08070d;
+		padding: 28px 16px;
+		color: var(--text-muted);
+		font-size: 13px;
+		box-shadow: inset 4px 4px 0px rgba(0,0,0,0.8);
+		position: relative;
+	}
+	.drop::before, .drop::after {
+		content: "◎";
+		font-family: var(--font-en);
+		font-size: 26px;
+		color: #1e1d2a;
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		opacity: 0.3;
+		pointer-events: none;
+	}
+	.drop::before { left: 40px; }
+	.drop::after { right: 40px; }
+	
+	.drop:hover, .drop.over {
+		border-color: var(--accent-c);
+		color: var(--text-main);
+		background: #11101b;
+	}
+	.midiInfo {
+		font-size: 12px;
+		color: var(--text-muted);
+		margin-top: 8px;
+		min-height: 0;
+	}
+	.midiInfo code {
+		color: var(--accent-c);
+		font-family: var(--font-en);
+		font-weight: bold;
+		text-shadow: 0 0 4px var(--accent-c);
+	}
+	.orline {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		color: var(--text-muted);
+		font-size: 11px;
+		margin: 24px 0 12px;
+	}
+	.orline::before, .orline::after {
+		content: "";
+		flex: 1;
+		height: 2px;
+		background: var(--border-color);
+	}
+	
+	.tl-label {
+		font-size: 12px;
+		color: var(--text-muted);
+		margin: 18px 0 6px;
+		font-family: var(--font-ja-bold);
+		font-weight: normal;
+	}
+	.band-wrapper {
+		width: 100%;
+		overflow-x: auto;
+		background: #08070d;
+		border: 3px solid var(--border-color);
+		padding: 8px;
+		margin-bottom: 12px;
+		box-shadow: inset 3px 3px 0px #000;
+	}
+	.band-wrapper::-webkit-scrollbar, .detail-table-wrapper::-webkit-scrollbar {
+		height: 10px;
+		width: 10px;
+	}
+	.band-wrapper::-webkit-scrollbar-track, .detail-table-wrapper::-webkit-scrollbar-track {
+		background: #08070d;
+	}
+	.band-wrapper::-webkit-scrollbar-thumb, .detail-table-wrapper::-webkit-scrollbar-thumb {
+		background: #252438;
+		border: 3px solid #08070d;
+	}
+	.band-wrapper::-webkit-scrollbar-thumb:hover, .detail-table-wrapper::-webkit-scrollbar-thumb:hover {
+		background: var(--text-muted);
+	}
+
+	.band {
+		display: flex;
+		gap: 6px;
+		align-items: stretch;
+		min-width: 100%;
+	}
+	.kseg, .cseg {
+		min-width: 60px;
+		text-align: center;
+		border: 2px solid var(--border-color);
+		padding: 8px 6px;
+		white-space: nowrap;
+		box-shadow: 2px 2px 0px #000;
+	}
+	.kseg {
+		background: #3a2e1c;
+	}
+	.kseg .kn {
+		font-family: var(--font-en);
+		font-size: 14px;
+		font-weight: bold;
+		color: var(--accent-c);
+		text-shadow: 0 0 4px var(--accent-c);
+	}
+	.kseg .kt {
+		font-family: var(--font-en);
+		font-size: 10px;
+		color: var(--text-muted);
+	}
+	.cseg {
+		background: #1b1a2f;
+	}
+	.cseg .cs {
+		font-family: var(--font-en);
+		font-size: 15px;
+		font-weight: bold;
+		color: var(--accent-b);
+		text-shadow: 0 0 4px var(--accent-b);
+	}
+	.cseg .cd {
+		font-family: var(--font-en);
+		font-size: 11px;
+		color: var(--accent-a);
+	}
+	.cseg .ct {
+		font-family: var(--font-en);
+		font-size: 10px;
+		color: var(--text-muted);
+	}
+
+	/* Tracker Detail List Table */
+	.detail-table-wrapper {
+		max-height: 280px;
+		overflow-y: auto;
+		border: 3px solid var(--border-color);
+		background: #08070d;
+		margin-top: 12px;
+		box-shadow: inset 3px 3px 0px #000;
+	}
+	.detail-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 12px;
+		text-align: left;
+	}
+	.detail-table th, .detail-table td {
+		padding: 10px 14px;
+		border-bottom: 2px solid var(--border-color);
+	}
+	.detail-table th {
+		background: #1b1a29;
+		color: var(--text-muted);
+		font-family: var(--font-ja-bold);
+		font-weight: normal;
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		border-bottom: 3px solid var(--border-color);
+	}
+	.detail-table tr:hover {
+		background: #151421;
+	}
+	.detail-table td.time {
+		font-family: var(--font-en);
+		color: var(--accent-c);
+		text-shadow: 0 0 2px var(--accent-c);
+	}
+	.detail-table td.chord {
+		font-family: var(--font-en);
+		font-weight: bold;
+		color: var(--accent-b);
+		text-shadow: 0 0 2px var(--accent-b);
+	}
+	.detail-table td.key {
+		font-family: var(--font-en);
+		color: var(--accent-c);
+	}
+	.detail-table td.degree {
+		font-family: var(--font-en);
+		color: var(--accent-a);
+	}
+	.detail-table td.dur {
+		font-family: var(--font-en);
+		color: var(--text-muted);
+	}
+	.panel h2 code {
+		color: var(--text-muted);
+		font-family: var(--font-en);
+		font-size: 13px;
+		background: #0c0b12;
+		border: 2px solid var(--border-color);
+		padding: 2px 6px;
+		box-shadow: 1px 1px 0px #000;
 	}
 </style>
 </head>
 <body>
 <div class="wrap">
-	<h1>@onjmin/chord-parser</h1>
-	<p class="sub">コードネーム（chord symbol）⇄ 構成音（chord tones）を相互変換するデモ</p>
+	<header class="rack-header">
+		<div class="vu-meter left">
+			<div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+		</div>
+		<div class="header-title">
+			<h1>@onjmin/chord-parser</h1>
+			<p class="sub">8-BIT SYSTEM CHORD DETECTOR // MODEL CP-808</p>
+		</div>
+		<div class="vu-meter right">
+			<div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+		</div>
+	</header>
 
 	<!-- (A) -->
 	<div class="panel a">
-		<h2>(A) コードネーム → 構成音 &nbsp;<code style="color:var(--muted)">parseChord</code></h2>
+		<h2>(A) コードネーム → 構成音 &nbsp;<code>parseChord</code></h2>
 		<label for="symIn">コードネームを入力</label>
 		<input id="symIn" type="text" value="Cmaj7" autocomplete="off" spellcheck="false" />
 		<div class="chips" id="symChips"></div>
+		
+		<!-- LED Monitor -->
+		<div class="led-monitor" id="ledsA">
+			<div class="led-node" data-pc="0"><span>C</span><div class="led"></div></div>
+			<div class="led-node" data-pc="1"><span>C#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="2"><span>D</span><div class="led"></div></div>
+			<div class="led-node" data-pc="3"><span>D#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="4"><span>E</span><div class="led"></div></div>
+			<div class="led-node" data-pc="5"><span>F</span><div class="led"></div></div>
+			<div class="led-node" data-pc="6"><span>F#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="7"><span>G</span><div class="led"></div></div>
+			<div class="led-node" data-pc="8"><span>G#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="9"><span>A</span><div class="led"></div></div>
+			<div class="led-node" data-pc="10"><span>A#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="11"><span>B</span><div class="led"></div></div>
+		</div>
+
 		<div class="piano" id="pianoA"></div>
 		<div class="out" id="symOut"></div>
 	</div>
 
 	<!-- (B) -->
 	<div class="panel b">
-		<h2>(B) 構成音 → コードネーム &nbsp;<code style="color:var(--muted)">detectChord</code></h2>
+		<h2>(B) 構成音 → コードネーム &nbsp;<code>detectChord</code></h2>
 		<label for="noteIn">構成音を入力（カンマ区切り。pitch class 0〜11 / MIDI どちらでも可）</label>
 		<input id="noteIn" type="text" value="0, 4, 7, 11" autocomplete="off" spellcheck="false" />
 		<div class="chips" id="noteChips"></div>
+		
+		<!-- LED Monitor -->
+		<div class="led-monitor" id="ledsB">
+			<div class="led-node" data-pc="0"><span>C</span><div class="led"></div></div>
+			<div class="led-node" data-pc="1"><span>C#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="2"><span>D</span><div class="led"></div></div>
+			<div class="led-node" data-pc="3"><span>D#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="4"><span>E</span><div class="led"></div></div>
+			<div class="led-node" data-pc="5"><span>F</span><div class="led"></div></div>
+			<div class="led-node" data-pc="6"><span>F#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="7"><span>G</span><div class="led"></div></div>
+			<div class="led-node" data-pc="8"><span>G#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="9"><span>A</span><div class="led"></div></div>
+			<div class="led-node" data-pc="10"><span>A#</span><div class="led"></div></div>
+			<div class="led-node" data-pc="11"><span>B</span><div class="led"></div></div>
+		</div>
+
 		<div class="piano" id="pianoB"></div>
 		<div class="out" id="noteOut"></div>
 	</div>
 
 	<!-- (C) -->
 	<div class="panel c">
-		<h2>(C) 任意のMIDI → 時間軸コード進行＋キー推定 &nbsp;<code style="color:var(--muted)">detectProgression</code></h2>
+		<h2>(C) 任意のMIDI → 時間軸コード進行＋キー推定 &nbsp;<code>detectProgression</code></h2>
 		<label>MIDIファイルを読み込む（曲全体のノートからキー・転調・コード進行を推定）</label>
 		<label class="drop" id="midiDrop" for="midiIn">
 			<input id="midiIn" type="file" accept=".mid,.midi" hidden />
@@ -311,12 +972,26 @@
 		}
 		return keys;
 	}
-	function light(keys, pcs) {
+	function light(keys, pcs, ledContainerId) {
 		for (const arr of keys.values())
 			for (const n of arr) n.classList.remove("lit");
 		for (const pc of pcs) {
 			const arr = keys.get(((pc % 12) + 12) % 12);
 			if (arr) for (const n of arr) n.classList.add("lit");
+		}
+		if (ledContainerId) {
+			const container = document.getElementById(ledContainerId);
+			if (container) {
+				const nodes = container.querySelectorAll(".led-node");
+				for (const node of nodes) {
+					node.classList.remove("lit");
+					const nodePc = parseInt(node.getAttribute("data-pc"), 10);
+					const hasPc = pcs.some(pc => ((pc % 12) + 12) % 12 === nodePc);
+					if (hasPc) {
+						node.classList.add("lit");
+					}
+				}
+			}
 		}
 	}
 
@@ -331,13 +1006,13 @@
 			const r = parseChord(symIn.value.trim());
 			const names = r.pitchClasses.map((p) => noteName(p)).join(", ");
 			symOut.innerHTML =
-				`root: <code>${noteName(r.root)}</code> &nbsp; ` +
-				`notes: <code>[${r.notes.join(", ")}]</code><br>` +
-				`構成音: <code>${names}</code>`;
-			light(keysA, r.pitchClasses);
+				`<span class="out-row"><span class="out-lbl">ROOT</span><code>${noteName(r.root)}</code></span> &nbsp; ` +
+				`<span class="out-row"><span class="out-lbl">NOTES</span><code>[${r.notes.join(", ")}]</code></span><br>` +
+				`<span class="out-row"><span class="out-lbl">TONES</span><code>${names}</code></span>`;
+			light(keysA, r.pitchClasses, "ledsA");
 		} catch (e) {
 			symOut.innerHTML = `<span class="err">${e.message.split("\n")[0]}</span>`;
-			light(keysA, []);
+			light(keysA, [], "ledsA");
 		}
 	}
 	symIn.addEventListener("input", runA);
@@ -358,7 +1033,7 @@
 			.filter((v) => v !== "")
 			.map(Number)
 			.filter((n) => Number.isFinite(n));
-		light(keysB, notes);
+		light(keysB, notes, "ledsB");
 		const cands = detectChord(notes);
 		if (!cands.length) {
 			noteOut.innerHTML = `<span class="err">一致するコードが見つかりません</span>`;
