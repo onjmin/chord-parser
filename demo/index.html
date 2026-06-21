@@ -13,6 +13,7 @@
 		--muted: #8b93a1;
 		--accent: #6ea8fe;
 		--accent2: #6effc1;
+		--accent3: #ffd479;
 		--key-w: #f4f5f7;
 		--key-b: #20242c;
 		--lit: #6ea8fe;
@@ -38,6 +39,7 @@
 	}
 	.panel h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent); }
 	.panel.b h2 { color: var(--accent2); }
+	.panel.c h2 { color: var(--accent3); }
 	label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
 	input[type="text"] {
 		width: 100%;
@@ -87,6 +89,52 @@
 	.bkey.lit { background: var(--accent); }
 	.foot { color: var(--muted); font-size: 12px; text-align: center; margin-top: 30px; }
 	a { color: var(--accent); }
+	/* progression timeline */
+	.field { display: flex; gap: 16px; align-items: flex-end; margin-bottom: 4px; }
+	.field > div { flex: 1; }
+	.field .narrow { flex: 0 0 90px; }
+	input[type="number"] {
+		width: 100%;
+		background: #0f1115;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		color: var(--fg);
+		font-size: 16px;
+		padding: 10px 12px;
+		font-family: ui-monospace, monospace;
+	}
+	input[type="number"]:focus { outline: none; border-color: var(--accent3); }
+	.drop {
+		display: flex; align-items: center; justify-content: center;
+		text-align: center; cursor: pointer;
+		border: 1px dashed var(--border); border-radius: 10px;
+		padding: 22px 12px; color: var(--muted); font-size: 13px;
+		background: #0f1115; transition: border-color .15s, color .15s, background .15s;
+	}
+	.drop:hover, .drop.over { border-color: var(--accent3); color: var(--fg); background: #14171e; }
+	.midiInfo { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 0; }
+	.midiInfo code { color: var(--accent3); font-family: ui-monospace, monospace; }
+	.orline {
+		display: flex; align-items: center; gap: 10px;
+		color: var(--muted); font-size: 11px; margin: 18px 0 4px;
+	}
+	.orline::before, .orline::after {
+		content: ""; flex: 1; height: 1px; background: var(--border);
+	}
+	.tl-label { font-size: 11px; color: var(--muted); margin: 14px 0 5px; }
+	.band { display: flex; width: 100%; gap: 3px; align-items: stretch; }
+	.kseg, .cseg {
+		min-width: 0; overflow: hidden; text-align: center;
+		border: 1px solid var(--border); border-radius: 6px; padding: 6px 3px;
+		white-space: nowrap;
+	}
+	.kseg { background: #2a2418; }
+	.kseg .kn { font: 13px ui-monospace, monospace; color: var(--accent3); }
+	.kseg .kt { font-size: 10px; color: var(--muted); }
+	.cseg { background: #1d2330; }
+	.cseg .cs { font: 14px ui-monospace, monospace; color: var(--accent2); }
+	.cseg .cd { font-size: 11px; color: var(--accent); }
+	.cseg .ct { font-size: 10px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -114,6 +162,31 @@
 		<div class="out" id="noteOut"></div>
 	</div>
 
+	<!-- (C) -->
+	<div class="panel c">
+		<h2>(C) 任意のMIDI → 時間軸コード進行＋キー推定 &nbsp;<code style="color:var(--muted)">detectProgression</code></h2>
+		<label>MIDIファイルを読み込む（曲全体のノートからキー・転調・コード進行を推定）</label>
+		<label class="drop" id="midiDrop" for="midiIn">
+			<input id="midiIn" type="file" accept=".mid,.midi" hidden />
+			<span id="midiLabel">.mid / .midi をドラッグ＆ドロップ、またはクリックして選択</span>
+		</label>
+		<div class="midiInfo" id="midiInfo"></div>
+
+		<div class="orline"><span>または コード進行を直接入力</span></div>
+		<div class="field">
+			<div>
+				<label for="progIn">コード進行（<code>|</code> で小節区切り、転調も検出）</label>
+				<input id="progIn" type="text" value="C | G | Am | F | C | G | F | C | C | G | Am | F | C | G | F | C" autocomplete="off" spellcheck="false" />
+			</div>
+			<div class="narrow">
+				<label for="bpmIn">BPM</label>
+				<input id="bpmIn" type="number" value="120" min="20" max="400" />
+			</div>
+		</div>
+		<div class="chips" id="progChips"></div>
+		<div class="out" id="progOut"></div>
+	</div>
+
 	<p class="foot">
 		MIT License ·
 		<a href="https://github.com/onjmin/chord-parser">GitHub</a> ·
@@ -122,8 +195,12 @@
 </div>
 
 <script type="module">
+	import MidiParser from "https://cdn.jsdelivr.net/npm/midi-parser-js@4.0.4/+esm";
 	const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
-	const { parseChord, detectChord, noteName } = await import(
+	const {
+		parseChord, detectChord, noteName,
+		parseChords, chordEventsToNotes, detectProgression,
+	} = await import(
 		isLocal ? "http://localhost:40299/dist/index.mjs" : "./index.mjs"
 	);
 
@@ -240,8 +317,182 @@
 		document.getElementById("noteChips").appendChild(c);
 	}
 
+	// ----- (C) detectProgression -----
+	const progIn = document.getElementById("progIn");
+	const bpmIn = document.getElementById("bpmIn");
+	const progOut = document.getElementById("progOut");
+	const midiIn = document.getElementById("midiIn");
+	const midiDrop = document.getElementById("midiDrop");
+	const midiLabel = document.getElementById("midiLabel");
+	const midiInfo = document.getElementById("midiInfo");
+	const fmt = (s) => (Math.round(s * 10) / 10).toString();
+
+	// midi-parser-js を利用して、絶対秒の TimedNote[] に変換する。
+	function parseMidi(buf) {
+		const midi = MidiParser.parse(new Uint8Array(buf));
+		const division = midi.timeDivision;
+		if (!division) throw new Error("MIDIの division 情報が見つかりません");
+		if (division & 0x8000) throw new Error("SMPTEタイムコードのMIDIは未対応です");
+
+		const tempos = []; // { tick, us }
+		const raw = []; // { s, e, note }
+		for (const trk of midi.track) {
+			let tick = 0;
+			const pending = {}; // (ch<<8|note) -> startTick
+			for (const event of trk.event) {
+				tick += event.deltaTime;
+				if (event.type === 0xff && event.metaType === 0x51) {
+					let us;
+					if (typeof event.data === "number") {
+						us = event.data;
+					} else {
+						us = (event.data[0] << 16) | (event.data[1] << 8) | event.data[2];
+					}
+					tempos.push({ tick, us });
+				} else if (event.type === 9) { // Note On
+					const note = event.data[0];
+					const vel = event.data[1];
+					const ch = event.channel ?? 0;
+					if (ch === 9) continue; // ドラムトラックは除外
+					const k = (ch << 8) | note;
+					if (vel > 0) {
+						pending[k] = tick;
+					} else if (pending[k] != null) {
+						raw.push({ s: pending[k], e: tick, note });
+						delete pending[k];
+					}
+				} else if (event.type === 8) { // Note Off
+					const note = event.data[0];
+					const ch = event.channel ?? 0;
+					if (ch === 9) continue; // ドラムトラックは除外
+					const k = (ch << 8) | note;
+					if (pending[k] != null) {
+						raw.push({ s: pending[k], e: tick, note });
+						delete pending[k];
+					}
+				}
+			}
+			for (const k in pending) {
+				raw.push({ s: pending[k], e: tick, note: k & 0xff });
+			}
+		}
+
+		if (!tempos.length || tempos[0].tick > 0) tempos.unshift({ tick: 0, us: 500000 });
+		tempos.sort((a, b) => a.tick - b.tick);
+		const tickToSec = (tk) => {
+			let sec = 0, last = 0, us = tempos[0].us;
+			for (const c of tempos) {
+				if (c.tick > tk) break;
+				sec += ((c.tick - last) * us) / division / 1e6;
+				last = c.tick;
+				us = c.us;
+			}
+			return sec + ((tk - last) * us) / division / 1e6;
+		};
+
+		const notes = [];
+		for (const r of raw) {
+			const s = tickToSec(r.s), e = tickToSec(r.e);
+			if (e > s) notes.push({ pitch: r.note, when: s, duration: e - s });
+		}
+		notes.sort((a, b) => a.when - b.when);
+		const bpm = Math.round(60000000 / tempos[0].us);
+		return { notes, bpm };
+	}
+
+	function renderTimeline(analysis) {
+		const { keys, chords } = analysis;
+		if (!chords.length) {
+			progOut.innerHTML = `<span class="err">コードを検出できませんでした</span>`;
+			return;
+		}
+		const keyBand = keys
+			.map(
+				(k) =>
+					`<div class="kseg" style="flex:${k.duration}" title="${k.key.name}">` +
+					`<div class="kn">${k.key.name}</div>` +
+					`<div class="kt">${fmt(k.when)}s</div></div>`,
+			)
+			.join("");
+		const chordBand = chords
+			.map(
+				(c) =>
+					`<div class="cseg" style="flex:${c.duration}" title="${c.symbol}${c.degree ? " = " + c.degree : ""}">` +
+					`<div class="cs">${c.symbol}</div>` +
+					`<div class="cd">${c.degree ?? ""}</div>` +
+					`<div class="ct">${fmt(c.when)}s</div></div>`,
+			)
+			.join("");
+		progOut.innerHTML =
+			`<div class="tl-label">キー領域（転調検出）</div>` +
+			`<div class="band">${keyBand}</div>` +
+			`<div class="tl-label">コード進行（ローマ数字 = キーに対する度数）</div>` +
+			`<div class="band">${chordBand}</div>`;
+	}
+
+	// notes(TimedNote[]) を解析。1小節未満の細かなキーのちらつきは平滑化する。
+	function analyze(notes, bpm) {
+		const bar = (60 / bpm) * 4;
+		return detectProgression(notes, { bpm, minSegmentDuration: bar });
+	}
+
+	// テキストのコード進行から
+	function runText() {
+		const bpm = Number(bpmIn.value) || 120;
+		try {
+			const notes = chordEventsToNotes(parseChords(progIn.value, bpm));
+			renderTimeline(analyze(notes, bpm));
+		} catch (e) {
+			progOut.innerHTML = `<span class="err">${e.message.split("\n")[0]}</span>`;
+		}
+	}
+	progIn.addEventListener("input", runText);
+	bpmIn.addEventListener("input", runText);
+	for (const s of [
+		"C | G | Am | F | C | G | F | C | C | G | Am | F | C | G | F | C",
+		"CM7 | Am7 | Dm7 | G7 | CM7 | Am7 | Dm7 | G7",
+		"C | E7 | Am | C7 | F | Fm | C | G7 | C | E7 | Am | C7 | F | Fm | C | G7",
+		"C | G | Am | F | C | G | Am | F | E | B | C#m | A | E | B | C#m | A",
+	]) {
+		const c = document.createElement("span");
+		c.className = "chip";
+		c.textContent = s.length > 28 ? s.slice(0, 27) + "…" : s;
+		c.title = s;
+		c.onclick = () => { progIn.value = s; runText(); };
+		document.getElementById("progChips").appendChild(c);
+	}
+
+	// MIDIファイルから
+	function loadMidi(file) {
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			try {
+				const { notes, bpm } = parseMidi(reader.result);
+				if (!notes.length) throw new Error("ノートが見つかりませんでした");
+				const dur = Math.max(...notes.map((n) => n.when + n.duration));
+				midiLabel.textContent = file.name;
+				midiInfo.innerHTML =
+					`<code>${notes.length}</code> ノート / ` +
+					`長さ <code>${fmt(dur)}s</code> / テンポ <code>${bpm}</code> BPM`;
+				renderTimeline(analyze(notes, bpm));
+			} catch (e) {
+				midiInfo.innerHTML = `<span class="err">${e.message}</span>`;
+			}
+		};
+		reader.onerror = () => { midiInfo.innerHTML = `<span class="err">読み込みに失敗しました</span>`; };
+		reader.readAsArrayBuffer(file);
+	}
+	midiIn.addEventListener("change", () => loadMidi(midiIn.files[0]));
+	for (const ev of ["dragenter", "dragover"])
+		midiDrop.addEventListener(ev, (e) => { e.preventDefault(); midiDrop.classList.add("over"); });
+	for (const ev of ["dragleave", "drop"])
+		midiDrop.addEventListener(ev, (e) => { e.preventDefault(); midiDrop.classList.remove("over"); });
+	midiDrop.addEventListener("drop", (e) => loadMidi(e.dataTransfer.files[0]));
+
 	runA();
 	runB();
+	runText();
 </script>
 </body>
 </html>
