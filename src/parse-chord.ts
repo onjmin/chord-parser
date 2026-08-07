@@ -235,8 +235,13 @@ const parsePitch = (input: Input, output: Output): Output => {
 	const pitch = pitchMatcher.parse(input);
 	if (pitch === null) err(input, "Not found pitch");
 	output.pitch = pitch as number;
-	const half = parseHalf(input, true);
-	if (half !== null) output.pitch += half;
+	// ダブルシャープ(##/♯♯)・ダブルフラット(bb/♭♭)のように半音記号が連続する場合も
+	// 累積して適用する（例: C## → +2, Cbb → -2）。最大2連続まで許容する。
+	for (let i = 0; i < 2; i++) {
+		const half = parseHalf(input, true);
+		if (half === null) break;
+		output.pitch += half;
+	}
 	return parseBase(input, output);
 };
 
