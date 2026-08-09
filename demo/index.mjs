@@ -209,8 +209,11 @@ var parsePitch = (input, output) => {
   const pitch = pitchMatcher.parse(input);
   if (pitch === null) err(input, "Not found pitch");
   output.pitch = pitch;
-  const half = parseHalf(input, true);
-  if (half !== null) output.pitch += half;
+  for (let i = 0; i < 2; i++) {
+    const half = parseHalf(input, true);
+    if (half === null) break;
+    output.pitch += half;
+  }
   return parseBase(input, output);
 };
 var MAJOR = [0, 4, 7];
